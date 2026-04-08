@@ -8,6 +8,7 @@
 
 # AI guidelines
 copilot/
+PUBLISHING.md
 
 # Test binary
 *.test

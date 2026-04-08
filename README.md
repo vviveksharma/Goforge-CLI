@@ -1,18 +1,21 @@
-# goforge
+# Goforge
 
 Forge production-ready Go applications with security, observability, and best practices built-in.
 
 ## 🚀 Installation
 
 ### Option 1: Go Install (Recommended)
+
 ```bash
 go install github.com/viveksharma/goforge@latest
 ```
 
 ### Option 2: Download Binary
+
 Download pre-built binaries from the [Releases](https://github.com/viveksharma/goforge/releases) page.
 
 ### Option 3: Build from Source
+
 ```bash
 git clone https://github.com/viveksharma/goforge.git
 cd goforge
@@ -37,6 +40,7 @@ Visit `http://localhost:8080/health/ready` to verify the API is running.
 Every generated project includes:
 
 ### 🔒 Security First
+
 - **Security Headers**: HSTS, CSP, X-Frame-Options, X-Content-Type-Options
 - **Input Validation**: Path traversal protection, request validation
 - **No Sensitive Logging**: Credentials never appear in logs
@@ -46,12 +50,14 @@ Every generated project includes:
 - **Timeouts**: Request/connection timeouts prevent DoS
 
 ### 📊 Observability
+
 - **Structured Logging**: JSON logs with correlation IDs (zap)
 - **Health Checks**: Kubernetes-ready `/health/live` and `/health/ready`
 - **Request Tracing**: Unique request IDs for log correlation
 - **Error Tracking**: Contextual error logging with stack traces
 
 ### 🏗️ Production Ready
+
 - **Fiber Web Framework**: High-performance HTTP server
 - **PostgreSQL**: Production-grade database with connection pooling
 - **Redis**: Caching layer with connection management
@@ -60,6 +66,7 @@ Every generated project includes:
 - **Environment Management**: Type-safe `.env` configuration
 
 ### 🔧 Developer Experience
+
 - **Make Commands**: Common tasks via Makefile
 - **Hot Reload Ready**: Easy integration with Air or CompileDaemon
 - **Clean Architecture**: Separation of concerns (handler/service/repository pattern ready)
@@ -105,6 +112,7 @@ your-project/
 ### Security Best Practices
 
 All generated code follows:
+
 - OWASP Top 10 protection
 - Principle of least privilege
 - Defense in depth
@@ -140,13 +148,13 @@ Generated projects are fully customizable:
 
 Every project includes these environment variables:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `APP_ENV` | Environment (development/production) | `development` |
-| `APP_PORT` | HTTP server port | `8080` |
-| `DATABASE_URL` | PostgreSQL connection string | Required |
-| `REDIS_URL` | Redis connection string | Required |
-| `LOG_LEVEL` | Logging level (debug/info/warn/error) | `info` |
+| Variable       | Description                           | Default       |
+| -------------- | ------------------------------------- | ------------- |
+| `APP_ENV`      | Environment (development/production)  | `development` |
+| `APP_PORT`     | HTTP server port                      | `8080`        |
+| `DATABASE_URL` | PostgreSQL connection string          | Required      |
+| `REDIS_URL`    | Redis connection string               | Required      |
+| `LOG_LEVEL`    | Logging level (debug/info/warn/error) | `info`        |
 
 ## 🚢 Deployment
 
@@ -168,6 +176,7 @@ make test
 ```
 
 Add your tests in:
+
 - `internal/handler/*_test.go`
 - `internal/service/*_test.go`
 - `pkg/*_test.go`
@@ -175,11 +184,13 @@ Add your tests in:
 ## 📖 Examples
 
 ### Create a basic API
+
 ```bash
 goforge create my-api
 ```
 
 ### What happens:
+
 1. ✅ Creates project directory
 2. ✅ Generates all project files
 3. ✅ Sets up Fiber server
@@ -189,6 +200,7 @@ goforge create my-api
 7. ✅ Creates comprehensive README
 
 ### Start developing immediately
+
 ```bash
 cd my-api
 make up
