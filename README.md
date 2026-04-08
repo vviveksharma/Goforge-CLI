@@ -213,26 +213,6 @@ MIT License - feel free to use this for any project.
 
 Found a bug or have a feature request? Open an issue on GitHub.
 
-## 💡 Roadmap
-
-Future features planned:
-- [ ] Framework selection (Gin, Echo, Chi)
-- [ ] gRPC support via flag
-- [ ] Database migration tool integration
-- [ ] Authentication middleware templates
-- [ ] GraphQL option
-- [ ] OpenAPI/Swagger generation
-- [ ] Monitoring (Prometheus/Grafana)
-- [ ] GitHub Actions CI/CD templates
-
-## 📚 Learn More
-
-Generated projects follow:
-- [12-Factor App](https://12factor.net/) methodology
-- [OWASP Security Guidelines](https://owasp.org/)
-- [Go Best Practices](https://go.dev/doc/effective_go)
-- Clean Architecture principles
-
 ## ⭐ Show Your Support
 
 If this tool helped you, give it a star on GitHub!
