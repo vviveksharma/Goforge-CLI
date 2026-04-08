@@ -1,0 +1,119 @@
+package logger
+
+import (
+	"os"
+	"sync"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+var (
+	once   sync.Once
+	logger *Logger
+)
+
+type Logger struct {
+	*zap.SugaredLogger
+}
+
+// New creates a new logger instance with production-ready configuration
+func New() *Logger {
+	once.Do(func() {
+		config := zap.NewProductionConfig()
+
+		// Configure encoding
+		config.Encoding = "json"
+		config.EncoderConfig.TimeKey = "timestamp"
+		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		config.EncoderConfig.MessageKey = "message"
+		config.EncoderConfig.LevelKey = "level"
+
+		// Set output paths
+		config.OutputPaths = []string{"stdout"}
+		config.ErrorOutputPaths = []string{"stderr"}
+
+		// Build logger
+		zapLogger, err := config.Build(
+			zap.AddCallerSkip(1),
+			zap.AddStacktrace(zapcore.ErrorLevel),
+		)
+		if err != nil {
+			panic("Failed to initialize logger: " + err.Error())
+		}
+
+		logger = &Logger{
+			SugaredLogger: zapLogger.Sugar(),
+		}
+	})
+
+	return logger
+}
+
+// SetLevel sets the logging level dynamically
+func SetLevel(level string) {
+	var zapLevel zapcore.Level
+	switch level {
+	case "debug":
+		zapLevel = zapcore.DebugLevel
+	case "info":
+		zapLevel = zapcore.InfoLevel
+	case "warn":
+		zapLevel = zapcore.WarnLevel
+	case "error":
+		zapLevel = zapcore.ErrorLevel
+	default:
+		zapLevel = zapcore.InfoLevel
+	}
+
+	config := zap.NewProductionConfig()
+	config.Level = zap.NewAtomicLevelAt(zapLevel)
+	config.Encoding = "json"
+	config.EncoderConfig.TimeKey = "timestamp"
+	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	zapLogger, _ := config.Build(
+		zap.AddCallerSkip(1),
+		zap.AddStacktrace(zapcore.ErrorLevel),
+	)
+
+	logger = &Logger{
+		SugaredLogger: zapLogger.Sugar(),
+	}
+}
+
+// Sync flushes any buffered log entries
+func (l *Logger) Sync() {
+	_ = l.SugaredLogger.Sync()
+}
+
+// WithField adds a field to the logger
+func (l *Logger) WithField(key string, value interface{}) *Logger {
+	return &Logger{
+		SugaredLogger: l.SugaredLogger.With(key, value),
+	}
+}
+
+// WithFields adds multiple fields to the logger
+func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
+	args := make([]interface{}, 0, len(fields)*2)
+	for k, v := range fields {
+		args = append(args, k, v)
+	}
+	return &Logger{
+		SugaredLogger: l.SugaredLogger.With(args...),
+	}
+}
+
+// Fatal logs a message at FatalLevel and exits
+func (l *Logger) Fatal(msg string, keysAndValues ...interface{}) {
+	l.SugaredLogger.Fatalw(msg, keysAndValues...)
+	os.Exit(1)
+}
+
+// Security Note: This logger is configured to:
+// 1. Output structured JSON for easy parsing
+// 2. Include timestamps in ISO8601 format
+// 3. Add stack traces for errors
+// 4. Never log sensitive data (implement this in your handlers)
+// 5. Separate stdout and stderr streams

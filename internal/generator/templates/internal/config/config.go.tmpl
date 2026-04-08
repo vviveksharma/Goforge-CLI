@@ -1,0 +1,102 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"strconv"
+
+	"github.com/joho/godotenv"
+)
+
+type Config struct {
+	AppEnv      string
+	AppPort     int
+	DatabaseURL string
+	RedisURL    string
+	LogLevel    string
+}
+
+// Load reads configuration from environment variables
+// Security: Never log or expose sensitive values like DatabaseURL
+func Load() (*Config, error) {
+	// Load .env file if it exists (ignore error in production)
+	_ = godotenv.Load()
+
+	cfg := &Config{
+		AppEnv:      getEnv("APP_ENV", "development"),
+		AppPort:     getEnvAsInt("APP_PORT", 8080),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
+		RedisURL:    getEnv("REDIS_URL", ""),
+		LogLevel:    getEnv("LOG_LEVEL", "info"),
+	}
+
+	// Validate required configuration
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// validate ensures all required configuration is present
+func (c *Config) validate() error {
+	if c.DatabaseURL == "" {
+		return fmt.Errorf("DATABASE_URL is required")
+	}
+
+	if c.RedisURL == "" {
+		return fmt.Errorf("REDIS_URL is required")
+	}
+
+	// Security: Validate port range
+	if c.AppPort < 1 || c.AppPort > 65535 {
+		return fmt.Errorf("APP_PORT must be between 1 and 65535")
+	}
+
+	// Validate environment
+	validEnvs := map[string]bool{
+		"development": true,
+		"staging":     true,
+		"production":  true,
+		"test":        true,
+	}
+
+	if !validEnvs[c.AppEnv] {
+		return fmt.Errorf("APP_ENV must be one of: development, staging, production, test")
+	}
+
+	return nil
+}
+
+// IsProduction returns true if running in production
+func (c *Config) IsProduction() bool {
+	return c.AppEnv == "production"
+}
+
+// IsDevelopment returns true if running in development
+func (c *Config) IsDevelopment() bool {
+	return c.AppEnv == "development"
+}
+
+// getEnv reads an environment variable or returns a default value
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsInt reads an environment variable as integer or returns default
+func getEnvAsInt(key string, defaultValue int) int {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return defaultValue
+	}
+
+	return value
+}

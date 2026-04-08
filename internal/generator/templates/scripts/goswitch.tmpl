@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────
+#  goswitch – Universal Go version installer
+#  Works on: macOS (Intel/M1/M2), Linux (x64/ARM)
+#  Usage:  goswitch <version>
+#  e.g.:   goswitch 1.26.2
+# ─────────────────────────────────────────────
+
+set -euo pipefail
+
+# ── Colors ────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+info()    { echo -e "${CYAN}${BOLD}[goswitch]${NC} $*"; }
+success() { echo -e "${GREEN}${BOLD}[goswitch]${NC} $*"; }
+warn()    { echo -e "${YELLOW}${BOLD}[goswitch]${NC} $*"; }
+error()   { echo -e "${RED}${BOLD}[goswitch] ERROR:${NC} $*" >&2; exit 1; }
+
+# ── Auto-detect OS and Architecture ───────────
+detect_platform() {
+  local os arch
+
+  # Detect OS
+  case "$(uname -s)" in
+    Darwin*)
+      os="darwin"
+      ;;
+    Linux*)
+      os="linux"
+      ;;
+    *)
+      error "Unsupported OS: $(uname -s). Only macOS and Linux are supported."
+      ;;
+  esac
+
+  # Detect Architecture
+  case "$(uname -m)" in
+    x86_64|amd64)
+      arch="amd64"
+      ;;
+    aarch64|arm64)
+      arch="arm64"
+      ;;
+    armv6l)
+      arch="armv6l"
+      ;;
+    *)
+      error "Unsupported architecture: $(uname -m)"
+      ;;
+  esac
+
+  echo "$os:$arch"
+}
+
+# ── Config ────────────────────────────────────
+PLATFORM=$(detect_platform)
+OS="${PLATFORM%%:*}"
+ARCH="${PLATFORM##*:}"
+GO_INSTALL_DIR="/usr/local/go"
+DOWNLOAD_DIR="$(mktemp -d)"
+
+trap 'rm -rf "$DOWNLOAD_DIR"' EXIT
+
+# ── Helpers ───────────────────────────────────
+usage() {
+  echo ""
+  echo -e "  ${BOLD}goswitch${NC} – install & switch Go versions (macOS/Linux)"
+  echo ""
+  echo -e "  ${BOLD}Usage:${NC}"
+  echo -e "    goswitch <version>        install a specific version"
+  echo -e "    goswitch latest           install the latest stable version"
+  echo -e "    goswitch --current        show the currently installed version"
+  echo -e "    goswitch --help           show this help"
+  echo ""
+  echo -e "  ${BOLD}Examples:${NC}"
+  echo -e "    goswitch 1.26.2"
+  echo -e "    goswitch 1.22.4"
+  echo -e "    goswitch latest"
+  echo ""
+  echo -e "  ${BOLD}Detected Platform:${NC}"
+  echo -e "    OS: ${CYAN}${OS}${NC}  |  Architecture: ${CYAN}${ARCH}${NC}"
+  echo ""
+}
+
+current_version() {
+  if command -v go &>/dev/null; then
+    go version
+  else
+    warn "Go is not installed or not in PATH."
+  fi
+}
+
+fetch_latest_version() {
+  info "Fetching latest Go version..."
+  local latest
+  latest=$(curl -fsSL "https://go.dev/VERSION?m=text" | head -1 | sed 's/^go//')
+  echo "$latest"
+}
+
+validate_version_format() {
+  local ver="$1"
+  if [[ ! "$ver" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    error "Invalid version format: '$ver'. Use format like 1.26.2 or 1.22"
+  fi
+}
+
+check_permissions() {
+  # Check if we can write to /usr/local
+  if [[ ! -w "/usr/local" ]] && [[ ! -d "$GO_INSTALL_DIR" || ! -w "$GO_INSTALL_DIR" ]]; then
+    if ! command -v sudo &>/dev/null; then
+      error "Cannot write to /usr/local and sudo is not available. Run as root or install sudo."
+    fi
+  fi
+}
+
+# ── Main install logic ─────────────────────────
+install_go() {
+  local VERSION="$1"
+  local TARBALL="go${VERSION}.${OS}-${ARCH}.tar.gz"
+  local DOWNLOAD_URL="https://dl.google.com/go/${TARBALL}"
+  local TARBALL_PATH="${DOWNLOAD_DIR}/${TARBALL}"
+
+  info "Target version : ${BOLD}Go ${VERSION}${NC}"
+  info "Platform       : ${BOLD}${OS}/${ARCH}${NC}"
+  info "Install path   : ${BOLD}${GO_INSTALL_DIR}${NC}"
+  echo ""
+
+  check_permissions
+
+  # ── Check if already installed ────────────────
+  if [[ -d "$GO_INSTALL_DIR" ]]; then
+    local installed
+    installed=$("${GO_INSTALL_DIR}/bin/go" version 2>/dev/null | awk '{print $3}' | sed 's/^go//' || echo "unknown")
+    if [[ "$installed" == "$VERSION" ]]; then
+      success "Go ${VERSION} is already installed!"
+      current_version
+      return 0
+    fi
+    warn "Currently installed: Go ${installed} → replacing with Go ${VERSION}"
+  fi
+
+  # ── Download ──────────────────────────────────
+  info "Downloading ${TARBALL}..."
+  if ! curl -fL --progress-bar "$DOWNLOAD_URL" -o "$TARBALL_PATH"; then
+    error "Download failed. Check the version at https://go.dev/dl/"
+  fi
+  success "Download complete."
+
+  # ── Verify it's a real tar ────────────────────
+  if ! file "$TARBALL_PATH" | grep -qE "gzip|compressed"; then
+    error "Downloaded file doesn't look like a valid tarball. Version '${VERSION}' may not exist."
+  fi
+
+  # ── Remove old installation ───────────────────
+  if [[ -d "$GO_INSTALL_DIR" ]]; then
+    info "Removing old Go installation..."
+    if [[ -w "$GO_INSTALL_DIR" ]]; then
+      rm -rf "$GO_INSTALL_DIR"
+    else
+      sudo rm -rf "$GO_INSTALL_DIR"
+    fi
+  fi
+
+  # ── Extract ───────────────────────────────────
+  info "Extracting to /usr/local ..."
+  if [[ -w "/usr/local" ]]; then
+    tar -C /usr/local -xzf "$TARBALL_PATH"
+  else
+    sudo tar -C /usr/local -xzf "$TARBALL_PATH"
+  fi
+  success "Extracted successfully."
+
+  # ── PATH setup ────────────────────────────────
+  setup_path
+}
+
+setup_path() {
+  local GO_BIN="/usr/local/go/bin"
+  local GOPATH_BIN="$HOME/go/bin"
+
+  # Detect shell profile
+  local PROFILE=""
+  local SHELL_NAME="${SHELL##*/}"
+  
+  case "$SHELL_NAME" in
+    zsh)
+      PROFILE="$HOME/.zshrc"
+      ;;
+    bash)
+      # macOS uses .bash_profile, Linux uses .bashrc
+      if [[ "$OS" == "darwin" ]]; then
+        PROFILE="$HOME/.bash_profile"
+      else
+        PROFILE="$HOME/.bashrc"
+      fi
+      ;;
+    fish)
+      PROFILE="$HOME/.config/fish/config.fish"
+      ;;
+    *)
+      PROFILE="$HOME/.profile"
+      ;;
+  esac
+
+  local PATH_EXPORT='export PATH="$PATH:/usr/local/go/bin:$HOME/go/bin"'
+
+  # Special handling for fish shell
+  if [[ "$SHELL_NAME" == "fish" ]]; then
+    PATH_EXPORT='set -gx PATH $PATH /usr/local/go/bin $HOME/go/bin'
+  fi
+
+  # Add to profile if not already there
+  if ! grep -qF "/usr/local/go/bin" "$PROFILE" 2>/dev/null; then
+    mkdir -p "$(dirname "$PROFILE")"
+    echo "" >> "$PROFILE"
+    echo "# Go – added by goswitch" >> "$PROFILE"
+    echo "$PATH_EXPORT" >> "$PROFILE"
+    info "Added Go to PATH in ${PROFILE}"
+  else
+    info "PATH entry already exists in ${PROFILE} — skipping."
+  fi
+
+  # Also export for current session
+  export PATH="$PATH:$GO_BIN:$GOPATH_BIN"
+
+  echo ""
+  success "────────────────────────────────────────"
+  success " ✓  Go $("${GO_INSTALL_DIR}/bin/go" version | awk '{print $3}') installed!"
+  success "────────────────────────────────────────"
+  echo ""
+  echo -e "  ${BOLD}Next steps:${NC}"
+  echo -e "  1. Reload your shell:  ${CYAN}source ${PROFILE}${NC}"
+  echo -e "     or open a new terminal tab."
+  echo ""
+  echo -e "  2. Verify:  ${CYAN}go version${NC}"
+  echo ""
+  
+  if command -v code &>/dev/null; then
+    echo -e "  ${BOLD}VS Code detected:${NC}"
+    echo -e "  • Open Command Palette (Cmd/Ctrl+Shift+P)"
+    echo -e "  • Run: ${CYAN}Go: Choose Go Environment${NC}"
+    echo -e "  • Or: ${CYAN}Developer: Reload Window${NC}"
+    echo ""
+  fi
+
+  # Platform-specific notes
+  if [[ "$OS" == "linux" ]]; then
+    echo -e "  ${BOLD}Linux Note:${NC}"
+    echo -e "  • If using a display manager (GNOME, KDE), you may need to log out/in"
+    echo -e "  • For system-wide access, add to ${CYAN}/etc/profile${NC}"
+    echo ""
+  fi
+}
+
+# ── Entry point ───────────────────────────────
+main() {
+  if [[ $# -eq 0 ]]; then
+    usage
+    exit 0
+  fi
+
+  case "$1" in
+    --help|-h)
+      usage
+      ;;
+    --current|-c)
+      current_version
+      ;;
+    latest)
+      VERSION=$(fetch_latest_version)
+      info "Latest stable version is ${BOLD}${VERSION}${NC}"
+      install_go "$VERSION"
+      ;;
+    *)
+      validate_version_format "$1"
+      install_go "$1"
+      ;;
+  esac
+}
+
+main "$@"

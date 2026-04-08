@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: {{.ProjectName}}_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: {{.ProjectName}}_user
+      POSTGRES_PASSWORD: changeme123
+      POSTGRES_DB: {{.ProjectName}}_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{.ProjectName}}_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Security: Run as non-root user
+    user: postgres
+
+  redis:
+    image: redis:7-alpine
+    container_name: {{.ProjectName}}_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Security: Run with appendonly mode for data persistence
+    command: redis-server --appendonly yes
+    # Security: Run as non-root user
+    user: redis
+
+  api:
+    build:
+      context: .
+      dockerfile: deployments/Dockerfile
+    container_name: {{.ProjectName}}_api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: development
+      APP_PORT: 8080
+      DATABASE_URL: postgres://{{.ProjectName}}_user:changeme123@postgres:5432/{{.ProjectName}}_db?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+    # Security: Drop all capabilities
+    cap_drop:
+      - ALL
+    # Security: Run as non-root user  
+    user: "1000:1000"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

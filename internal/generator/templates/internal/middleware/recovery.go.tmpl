@@ -1,0 +1,91 @@
+package middleware
+
+import (
+	"fmt"
+	"runtime/debug"
+
+	"github.com/gofiber/fiber/v2"
+	"{{.ModulePath}}/pkg/logger"
+)
+
+// Recovery recovers from panics and returns a 500 error
+// This prevents the server from crashing on panic
+func Recovery(log *logger.Logger) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		defer func() {
+			if r := recover(); r != nil {
+				// Get request ID for correlation
+				requestID := GetRequestID(c)
+
+				// Get stack trace
+				stack := string(debug.Stack())
+
+				// Log the panic with full context
+				log.Error("Panic recovered",
+					"request_id", requestID,
+					"method", c.Method(),
+					"path", c.Path(),
+					"panic", fmt.Sprintf("%v", r),
+					"stack", stack,
+				)
+
+				// Security: Don't expose internal error details to clients
+				// Return generic error message
+				c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":      "Internal server error",
+					"request_id": requestID,
+				})
+			}
+		}()
+
+		return c.Next()
+	}
+}
+
+// ErrorHandler is a custom error handler for Fiber
+// It provides consistent error responses and logging
+func ErrorHandler(log *logger.Logger) fiber.ErrorHandler {
+	return func(c *fiber.Ctx, err error) error {
+		// Get error code
+		code := fiber.StatusInternalServerError
+		if e, ok := err.(*fiber.Error); ok {
+			code = e.Code
+		}
+
+		// Get request ID
+		requestID := GetRequestID(c)
+
+		// Log error with context
+		if code >= 500 {
+			// Server errors - log with error level
+			log.Error("Server error",
+				"request_id", requestID,
+				"method", c.Method(),
+				"path", c.Path(),
+				"status", code,
+				"error", err.Error(),
+			)
+		} else {
+			// Client errors - log with warn level
+			log.Warn("Client error",
+				"request_id", requestID,
+				"method", c.Method(),
+				"path", c.Path(),
+				"status", code,
+				"error", err.Error(),
+			)
+		}
+
+		// Security: Don't expose internal error details
+		// Provide different messages for client vs server errors
+		message := err.Error()
+		if code >= 500 {
+			message = "Internal server error"
+		}
+
+		return c.Status(code).JSON(fiber.Map{
+			"error":      message,
+			"request_id": requestID,
+		})
+	}
+}

@@ -1,0 +1,44 @@
+.PHONY: help up down logs build run test fmt lint clean
+
+help: ## Show this help message
+	@echo 'Usage: make [target]'
+	@echo ''
+	@echo 'Available targets:'
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+up: ## Start all services (API, PostgreSQL, Redis)
+	docker-compose up -d
+	@echo "✅ Services started. API: http://localhost:8080"
+
+down: ## Stop all services
+	docker-compose down
+
+logs: ## View logs from all services
+	docker-compose logs -f
+
+build: ## Build the Go binary
+	go build -o bin/{{.ProjectName}} cmd/api/main.go
+
+run: ## Run the application locally
+	go run cmd/api/main.go
+
+test: ## Run tests
+	go test -v -race -coverprofile=coverage.out ./...
+
+fmt: ## Format Go code
+	go fmt ./...
+	gofmt -s -w .
+
+lint: ## Run golangci-lint
+	golangci-lint run
+
+clean: ## Clean up build artifacts and stop services
+	make down
+	rm -rf bin/
+	rm -f coverage.out
+
+db-connect: ## Connect to PostgreSQL database
+	docker-compose exec postgres psql -U {{.ProjectName}}_user -d {{.ProjectName}}_db
+
+redis-cli: ## Connect to Redis CLI
+	docker-compose exec redis redis-cli

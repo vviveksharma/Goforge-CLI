@@ -1,0 +1,196 @@
+# {{.ProjectName}}
+
+A production-ready Go REST API built with security and observability best practices.
+
+## 🚀 Quick Start
+
+```bash
+# Start all services (API, PostgreSQL, Redis)
+make up
+
+# Check if the API is running
+curl http://localhost:8080/health/ready
+
+# View logs
+make logs
+
+# Stop all services
+make down
+```
+
+## 📋 Features
+
+- ✅ **Fiber HTTP Server** - High-performance web framework
+- ✅ **Health Checks** - Kubernetes-ready liveness and readiness probes
+- ✅ **Structured Logging** - Request correlation with unique IDs
+- ✅ **Graceful Shutdown** - Safe termination with connection draining
+- ✅ **Security Headers** - HSTS, CSP, X-Frame-Options, and more
+- ✅ **PostgreSQL** - Production-grade relational database
+- ✅ **Redis** - High-performance caching layer
+- ✅ **Docker Compose** - Zero-config local development
+- ✅ **Environment Config** - Type-safe configuration management
+
+## 🏗️ Project Structure
+
+```
+{{.ProjectName}}/
+├── cmd/api/              # Application entry point
+├── internal/
+│   ├── config/           # Configuration management
+│   ├── handler/          # HTTP handlers
+│   ├── middleware/       # HTTP middleware
+│   └── server/           # Server setup
+├── pkg/
+│   ├── logger/           # Structured logging
+│   ├── database/         # Database connections
+│   └── cache/            # Redis cache client
+├── deployments/          # Docker and deployment configs
+├── docker-compose.yml    # Local development stack
+├── Makefile              # Common commands
+└── .env.example          # Environment variables template
+```
+
+## 🔧 Configuration
+
+Copy `.env.example` to `.env` and adjust values:
+
+```bash
+cp .env.example .env
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_ENV` | `development` | Environment (development/production) |
+| `APP_PORT` | `8080` | HTTP server port |
+| `DATABASE_URL` | - | PostgreSQL connection string |
+| `REDIS_URL` | - | Redis connection string |
+| `LOG_LEVEL` | `info` | Logging level (debug/info/warn/error) |
+
+## 📊 Health Endpoints
+
+### Liveness Probe
+```bash
+GET /health/live
+```
+Returns 200 if the application is running.
+
+### Readiness Probe
+```bash
+GET /health/ready
+```
+Returns 200 if the application is ready to serve traffic (database and cache connected).
+
+## 🔒 Security Features
+
+- **Secure Headers**: HSTS, CSP, X-Frame-Options
+- **Request ID Tracking**: Every request gets a unique ID for tracing
+- **Panic Recovery**: Graceful error handling prevents crashes
+- **Input Validation**: All inputs are validated
+- **No Sensitive Logging**: Credentials never appear in logs
+- **Read/Write Timeouts**: Protection against slow clients
+
+## 🧪 Development
+
+```bash
+# Run locally without Docker
+go run cmd/api/main.go
+
+# Build binary
+make build
+
+# Run tests
+make test
+
+# Format code
+make fmt
+
+# Run linter
+make lint
+```
+
+## 🔄 Upgrading Go
+
+The project includes a universal `goswitch` script for seamless Go version management.
+
+**Supports:** macOS (Intel/M1/M2) and Linux (x64/ARM)
+
+```bash
+# Install latest stable Go version
+./scripts/goswitch latest
+
+# Install specific version
+./scripts/goswitch 1.26.2
+
+# Check current version
+./scripts/goswitch --current
+
+# View help
+./scripts/goswitch --help
+```
+
+### Features
+- ✅ Auto-detects your OS and architecture
+- ✅ Downloads and verifies Go binaries
+- ✅ Installs to `/usr/local/go`
+- ✅ Automatically updates PATH in your shell config
+- ✅ Works with zsh, bash, and fish shells
+- ✅ VS Code Go extension integration
+- ✅ Handles both sudo and non-sudo installations
+
+**First-time setup:** After running `goswitch`, reload your shell:
+```bash
+source ~/.zshrc    # for zsh
+source ~/.bashrc   # for bash on Linux
+```
+
+## 📦 Production Deployment
+
+1. **Set production environment variables**
+2. **Build Docker image**: `docker build -t {{.ProjectName}} .`
+3. **Deploy to your platform** (Kubernetes, Cloud Run, etc.)
+
+## 🛠️ Available Make Commands
+
+```bash
+make up          # Start all services
+make down        # Stop all services
+make logs        # View logs
+make build       # Build the Go binary
+make test        # Run tests
+make fmt         # Format code
+make lint        # Run golangci-lint
+make clean       # Clean up
+```
+
+## 📝 Adding New Endpoints
+
+1. Create handler in `internal/handler/`
+2. Register route in `internal/server/server.go`
+3. Add tests
+4. Document in this README
+
+## 🐛 Troubleshooting
+
+**Port already in use:**
+```bash
+# Change APP_PORT in .env
+APP_PORT=8081
+```
+
+**Database connection failed:**
+```bash
+# Ensure Docker services are running
+make up
+```
+
+**Redis connection failed:**
+```bash
+# Check Redis logs
+docker-compose logs redis
+```
+
+## 📄 License
+
+MIT License - feel free to use this project as a starting point for your own applications.

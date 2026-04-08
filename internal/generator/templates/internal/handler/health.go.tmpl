@@ -1,0 +1,71 @@
+package handler
+
+import (
+	"context"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"{{.ModulePath}}/pkg/cache"
+	"{{.ModulePath}}/pkg/database"
+	"{{.ModulePath}}/pkg/logger"
+)
+
+type HealthHandler struct {
+	db    *database.DB
+	cache *cache.Redis
+	log   *logger.Logger
+}
+
+func NewHealthHandler(db *database.DB, cache *cache.Redis, log *logger.Logger) *HealthHandler {
+	return &HealthHandler{
+		db:    db,
+		cache: cache,
+		log:   log,
+	}
+}
+
+// LivenessProbe checks if the application is running
+// Returns 200 if the app is alive (doesn't check dependencies)
+func (h *HealthHandler) LivenessProbe(c *fiber.Ctx) error {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "ok",
+		"time":   time.Now().UTC().Format(time.RFC3339),
+	})
+}
+
+// ReadinessProbe checks if the application is ready to serve traffic
+// Returns 200 only if all dependencies (database, cache) are healthy
+func (h *HealthHandler) ReadinessProbe(c *fiber.Ctx) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	checks := make(map[string]string)
+
+	// Check database
+	if err := h.db.Ping(ctx); err != nil {
+		h.log.Error("Database health check failed", "error", err)
+		checks["database"] = "unhealthy"
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"status": "unavailable",
+			"checks": checks,
+		})
+	}
+	checks["database"] = "healthy"
+
+	// Check Redis
+	if err := h.cache.Ping(ctx); err != nil {
+		h.log.Error("Redis health check failed", "error", err)
+		checks["redis"] = "unhealthy"
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"status": "unavailable",
+			"checks": checks,
+		})
+	}
+	checks["redis"] = "healthy"
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status": "ready",
+		"checks": checks,
+		"time":   time.Now().UTC().Format(time.RFC3339),
+	})
+}

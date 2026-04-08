@@ -1,0 +1,154 @@
+package server
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"{{.ModulePath}}/internal/config"
+	"{{.ModulePath}}/internal/handler"
+	"{{.ModulePath}}/internal/middleware"
+	"{{.ModulePath}}/pkg/cache"
+	"{{.ModulePath}}/pkg/database"
+	"{{.ModulePath}}/pkg/logger"
+)
+
+type Server struct {
+	app    *fiber.App
+	config *config.Config
+	db     *database.DB
+	cache  *cache.Redis
+	log    *logger.Logger
+}
+
+func New(cfg *config.Config, log *logger.Logger) *Server {
+	// Initialize database
+	db, err := database.New(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal("Failed to connect to database", "error", err)
+	}
+
+	// Initialize Redis
+	redisClient, err := cache.New(cfg.RedisURL)
+	if err != nil {
+		log.Fatal("Failed to connect to Redis", "error", err)
+	}
+
+	// Create Fiber app with security configuration
+	app := fiber.New(fiber.Config{
+		// Security: Don't expose server information
+		ServerHeader: "",
+		AppName:      "API",
+
+		// Security: Set body limits to prevent DoS
+		BodyLimit: 4 * 1024 * 1024, // 4MB
+
+		// Security: Set timeouts
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  120 * time.Second,
+
+		// Security: Disable startup message in production
+		DisableStartupMessage: cfg.IsProduction(),
+
+		// Custom error handler
+		ErrorHandler: middleware.ErrorHandler(log),
+
+		// Security: Enable strict routing
+		StrictRouting: true,
+
+		// Security: Case sensitive routing
+		CaseSensitive: true,
+
+		// Security: Disable default date header
+		DisableDefaultDate: true,
+
+		// Security: Disable default content type
+		DisableDefaultContentType: true,
+	})
+
+	srv := &Server{
+		app:    app,
+		config: cfg,
+		db:     db,
+		cache:  redisClient,
+		log:    log,
+	}
+
+	srv.setupMiddleware()
+	srv.setupRoutes()
+
+	return srv
+}
+
+func (s *Server) setupMiddleware() {
+	// Security: Recovery middleware first to catch panics
+	s.app.Use(middleware.Recovery(s.log))
+
+	// Request logging
+	s.app.Use(middleware.RequestLogger(s.log))
+
+	// Security headers
+	s.app.Use(middleware.SecurityHeaders())
+
+	// CORS
+	s.app.Use(middleware.CORS())
+}
+
+func (s *Server) setupRoutes() {
+	// Health check endpoints
+	health := handler.NewHealthHandler(s.db, s.cache, s.log)
+
+	s.app.Get("/health/live", health.LivenessProbe)
+	s.app.Get("/health/ready", health.ReadinessProbe)
+
+	// API routes
+	api := s.app.Group("/api/v1")
+
+	// Example: Add your routes here
+	api.Get("/", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"message": "Welcome to the API",
+			"version": "1.0.0",
+		})
+	})
+
+	// 404 handler
+	s.app.Use(func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Route not found",
+		})
+	})
+}
+
+func (s *Server) Start() error {
+	addr := fmt.Sprintf(":%d", s.config.AppPort)
+	s.log.Info("Server starting", "address", addr)
+	return s.app.Listen(addr)
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	s.log.Info("Shutting down server...")
+
+	// Shutdown HTTP server
+	if err := s.app.ShutdownWithContext(ctx); err != nil {
+		s.log.Error("Error during server shutdown", "error", err)
+		return err
+	}
+
+	// Close database connection
+	if err := s.db.Close(); err != nil {
+		s.log.Error("Error closing database connection", "error", err)
+		return err
+	}
+
+	// Close Redis connection
+	if err := s.cache.Close(); err != nil {
+		s.log.Error("Error closing Redis connection", "error", err)
+		return err
+	}
+
+	s.log.Info("Server shutdown complete")
+	return nil
+}

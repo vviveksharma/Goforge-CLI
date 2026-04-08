@@ -1,0 +1,139 @@
+package cache
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+)
+
+type Redis struct {
+	client *redis.Client
+}
+
+// New creates a new Redis client with security best practices
+func New(connectionURL string) (*Redis, error) {
+	// Security: Validate connection string
+	if connectionURL == "" {
+		return nil, fmt.Errorf("redis connection URL is required")
+	}
+
+	// Parse connection URL
+	opts, err := redis.ParseURL(connectionURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
+	}
+
+	// Security: Configure timeouts to prevent hanging connections
+	opts.DialTimeout = 5 * time.Second
+	opts.ReadTimeout = 3 * time.Second
+	opts.WriteTimeout = 3 * time.Second
+
+	// Security: Set pool size limits
+	opts.PoolSize = 10
+	opts.MinIdleConns = 2
+	opts.MaxIdleConns = 5
+	opts.ConnMaxIdleTime = 5 * time.Minute
+	opts.ConnMaxLifetime = 10 * time.Minute
+
+	// Create client
+	client := redis.NewClient(opts)
+
+	// Verify connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+
+	return &Redis{client: client}, nil
+}
+
+// Ping checks if Redis is responsive
+func (r *Redis) Ping(ctx context.Context) error {
+	return r.client.Ping(ctx).Err()
+}
+
+// Close closes the Redis connection
+func (r *Redis) Close() error {
+	return r.client.Close()
+}
+
+// Get retrieves a value by key
+func (r *Redis) Get(ctx context.Context, key string) (string, error) {
+	// Security: Validate key is not empty
+	if key == "" {
+		return "", fmt.Errorf("key cannot be empty")
+	}
+
+	val, err := r.client.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return "", fmt.Errorf("key not found: %s", key)
+	}
+	return val, err
+}
+
+// Set stores a value with expiration
+func (r *Redis) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	// Security: Validate key is not empty
+	if key == "" {
+		return fmt.Errorf("key cannot be empty")
+	}
+
+	// Security: Always set expiration to prevent memory exhaustion
+	if expiration == 0 {
+		expiration = 24 * time.Hour // Default 24 hours
+	}
+
+	return r.client.Set(ctx, key, value, expiration).Err()
+}
+
+// Delete removes a key
+func (r *Redis) Delete(ctx context.Context, keys ...string) error {
+	if len(keys) == 0 {
+		return fmt.Errorf("no keys provided")
+	}
+	return r.client.Del(ctx, keys...).Err()
+}
+
+// Exists checks if keys exist
+func (r *Redis) Exists(ctx context.Context, keys ...string) (int64, error) {
+	if len(keys) == 0 {
+		return 0, fmt.Errorf("no keys provided")
+	}
+	return r.client.Exists(ctx, keys...).Result()
+}
+
+// Expire sets a timeout on key
+func (r *Redis) Expire(ctx context.Context, key string, expiration time.Duration) error {
+	if key == "" {
+		return fmt.Errorf("key cannot be empty")
+	}
+	return r.client.Expire(ctx, key, expiration).Err()
+}
+
+// Increment increments the integer value of a key
+// Useful for rate limiting, counters, etc.
+func (r *Redis) Increment(ctx context.Context, key string) (int64, error) {
+	if key == "" {
+		return 0, fmt.Errorf("key cannot be empty")
+	}
+	return r.client.Incr(ctx, key).Result()
+}
+
+// GetClient returns the underlying Redis client for advanced operations
+// Use with caution - direct access bypasses safety checks
+func (r *Redis) GetClient() *redis.Client {
+	return r.client
+}
+
+// Security Best Practices:
+// 1. Always use AUTH if Redis is exposed (set password in connection URL)
+// 2. Enable TLS for production (use rediss:// scheme)
+// 3. Use Redis ACLs to limit command access (Redis 6+)
+// 4. Set key expiration to prevent memory exhaustion
+// 5. Validate all inputs
+// 6. Use connection pooling
+// 7. Don't store sensitive data without encryption

@@ -1,0 +1,83 @@
+package middleware
+
+import (
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	"{{.ModulePath}}/pkg/logger"
+)
+
+// RequestLogger logs all incoming HTTP requests with correlation IDs
+func RequestLogger(log *logger.Logger) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Generate unique request ID
+		requestID := c.Get("X-Request-ID")
+		if requestID == "" {
+			requestID = uuid.New().String()
+			c.Set("X-Request-ID", requestID)
+		}
+
+		// Store request ID in context for downstream handlers
+		c.Locals("request_id", requestID)
+
+		// Record start time
+		start := time.Now()
+
+		// Process request
+		err := c.Next()
+
+		// Calculate request duration
+		duration := time.Since(start)
+
+		// Log request details
+		// Security: Don't log sensitive data like passwords, tokens, or API keys
+		log.Info("HTTP request",
+			"request_id", requestID,
+			"method", c.Method(),
+			"path", sanitizePath(c.Path()),
+			"status", c.Response().StatusCode(),
+			"duration_ms", duration.Milliseconds(),
+			"ip", sanitizeIP(c.IP()),
+			"user_agent", sanitizeUserAgent(c.Get("User-Agent")),
+		)
+
+		return err
+	}
+}
+
+// sanitizePath removes query parameters that might contain sensitive data
+func sanitizePath(path string) string {
+	// Remove query string for logging
+	for i, char := range path {
+		if char == '?' {
+			return path[:i]
+		}
+	}
+	return path
+}
+
+// sanitizeIP masks part of the IP address for privacy
+// In production, consider GDPR/privacy requirements
+func sanitizeIP(ip string) string {
+	// Return as-is in development, mask in production
+	// For production, you might want to hash or partially mask IPs
+	return ip
+}
+
+// sanitizeUserAgent truncates long user agent strings
+func sanitizeUserAgent(ua string) string {
+	maxLen := 200
+	if len(ua) > maxLen {
+		return ua[:maxLen] + "..."
+	}
+	return ua
+}
+
+// GetRequestID retrieves the request ID from context
+func GetRequestID(c *fiber.Ctx) string {
+	if id, ok := c.Locals("request_id").(string); ok {
+		return id
+	}
+	return ""
+}
