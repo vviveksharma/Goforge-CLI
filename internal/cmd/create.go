@@ -119,14 +119,6 @@ func runCreateWithDeps(opts CreateOptions, cmd *cobra.Command, args []string) er
 	return nil
 }
 
-// runGoModTidy executes go mod tidy in the project directory.
-// This is a convenience wrapper for backward compatibility.
-func runGoModTidy(projectPath string) error {
-	return runGoModTidyWithDeps(CreateOptions{
-		CMD: adapters.NewExecCommander(),
-	}, projectPath)
-}
-
 // runGoModTidyWithDeps executes go mod tidy with injected command executor.
 func runGoModTidyWithDeps(opts CreateOptions, projectPath string) error {
 	return opts.CMD.Run("go", []string{"mod", "tidy"}, projectPath, os.Stdout, os.Stderr)
