@@ -35,7 +35,9 @@ var createCmd = &cobra.Command{
 
 func init() {
 	createCmd.Flags().StringVarP(&serverType, "server", "s", "", "Web framework to use (fiber or gin) [REQUIRED]")
-	createCmd.MarkFlagRequired("server")
+	if err := createCmd.MarkFlagRequired("server"); err != nil {
+		panic(fmt.Sprintf("failed to mark server flag as required: %v", err))
+	}
 	rootCmd.AddCommand(createCmd)
 }
 
@@ -97,7 +99,9 @@ func runCreateWithDeps(opts CreateOptions, cmd *cobra.Command, args []string) er
 	gen := generator.NewGeneratorWithFS(config, opts.FS)
 	if err := gen.Generate(); err != nil {
 		// Clean up on failure
-		opts.FS.RemoveAll(projectPath)
+		if removeErr := opts.FS.RemoveAll(projectPath); removeErr != nil {
+			opts.Writer.Printf("⚠️  Warning: Failed to clean up project directory: %v\n", removeErr)
+		}
 		return fmt.Errorf("failed to generate project: %w", err)
 	}
 
