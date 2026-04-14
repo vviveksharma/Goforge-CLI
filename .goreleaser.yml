@@ -77,8 +77,8 @@ changelog:
 
 release:
   github:
-    owner: viveksharma
-    name: goforge
+    owner: vviveksharma
+    name: Goforge
   draft: false
   prerelease: auto
   name_template: "v{{.Version}}"
@@ -104,17 +104,17 @@ release:
 
     ---
 
-    **Full Changelog**: https://github.com/viveksharma/goforge/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/vviveksharma/Goforge/compare/{{ .PreviousTag }}...{{ .Tag }}
 
 # Homebrew tap configuration
 brews:
   - ids:
       - goforge
     repository:
-      owner: viveksharma
+      owner: vviveksharma
       name: homebrew-tap
     directory: Formula
-    homepage: https://github.com/viveksharma/goforge
+    homepage: https://github.com/vviveksharma/Goforge
     description: Generate production-ready Go applications with security and observability built-in
     license: MIT
     dependencies:
