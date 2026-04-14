@@ -41,7 +41,6 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
     formats:
       - tar.gz
-      - zip
     format_overrides:
       - goos: windows
         formats:
@@ -109,7 +108,9 @@ release:
 
 # Homebrew tap configuration
 brews:
-  - repository:
+  - ids:
+      - goforge
+    repository:
       owner: viveksharma
       name: homebrew-tap
     directory: Formula
