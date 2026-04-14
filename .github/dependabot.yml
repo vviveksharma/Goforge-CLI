@@ -8,9 +8,6 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "github-actions"
 
   # Go modules
   - package-ecosystem: "gomod"
@@ -19,9 +16,6 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "go"
     groups:
       # Group all patch and minor updates together
       minor-patch:

@@ -7,14 +7,14 @@ help: ## Show this help message
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 up: ## Start all services (API, PostgreSQL, Redis)
-	docker-compose up -d
+	docker compose up -d
 	@echo "✅ Services started. API: http://localhost:8080"
 
 down: ## Stop all services
-	docker-compose down
+	docker compose down
 
 logs: ## View logs from all services
-	docker-compose logs -f
+	docker compose logs -f
 
 build: ## Build the Go binary
 	go build -o bin/{{.ProjectName}} cmd/api/main.go
@@ -38,10 +38,10 @@ clean: ## Clean up build artifacts and stop services
 	rm -f coverage.out
 
 db-connect: ## Connect to PostgreSQL database
-	docker-compose exec postgres psql -U {{.ProjectName}}_user -d {{.ProjectName}}_db
+	docker compose exec postgres psql -U {{.ProjectName}}_user -d {{.ProjectName}}_db
 
 redis-cli: ## Connect to Redis CLI
-	docker-compose exec redis redis-cli
+	docker compose exec redis redis-cli
 
 migrate-up: ## Run all pending migrations
 	@echo "Running migrations..."

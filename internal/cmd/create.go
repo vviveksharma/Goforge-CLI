@@ -15,6 +15,7 @@ import (
 
 var (
 	serverType string
+	modulePath string
 )
 
 // CreateOptions contains dependencies for the create command.
@@ -35,6 +36,7 @@ var createCmd = &cobra.Command{
 
 func init() {
 	createCmd.Flags().StringVarP(&serverType, "server", "s", "", "Web framework to use (fiber or gin) [REQUIRED]")
+	createCmd.Flags().StringVarP(&modulePath, "module", "m", "", "Go module path (e.g., github.com/user/project). Defaults to project name")
 	if err := createCmd.MarkFlagRequired("server"); err != nil {
 		panic(fmt.Sprintf("failed to mark server flag as required: %v", err))
 	}
@@ -89,10 +91,16 @@ func runCreateWithDeps(opts CreateOptions, cmd *cobra.Command, args []string) er
 	opts.Writer.Printf("📦 Server framework: %s\n", serverType)
 
 	// Generate project
+	// Use custom module path if provided, otherwise default to project name
+	modPath := modulePath
+	if modPath == "" {
+		modPath = projectName
+	}
+
 	config := generator.ProjectConfig{
 		ProjectName: projectName,
 		ProjectPath: projectPath,
-		ModulePath:  fmt.Sprintf("github.com/yourusername/%s", projectName),
+		ModulePath:  modPath,
 		ServerType:  serverType,
 	}
 

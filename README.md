@@ -23,30 +23,47 @@ go build -o goforge ./cmd/goforge
 sudo mv goforge /usr/local/bin/
 ```
 
-## 📖 Usage
+## 📖 Quick Start
 
-Create a new project with your choice of web framework:
+### Basic Usage
+
+Create a new project in seconds:
 
 ```bash
-# Using Fiber (high performance)
-goforge create my-awesome-api --server fiber
-# or shorthand
-goforge create my-awesome-api -s fiber
+# Create with Fiber (high performance)
+goforge create my-api -s fiber
 
-# Using Gin (popular, feature-rich)
-goforge create my-awesome-api --server gin
-# or shorthand
-goforge create my-awesome-api -s gin
+# Create with Gin (feature-rich)
+goforge create my-api -s gin
 ```
 
-Then start developing:
+### Custom Module Path (Optional)
+
+By default, your Go module will be named after your project (e.g., `module my-api`).
+
+If you want a custom module path for GitHub/GitLab or organization projects:
 
 ```bash
-cd my-awesome-api
+# With custom module path
+goforge create my-api -s fiber --module github.com/yourusername/my-api
+
+# Short form
+goforge create my-api -s fiber -m github.com/viveksharma/my-api
+```
+
+### Start Developing
+
+```bash
+cd my-api
 make up
 ```
 
-Visit `http://localhost:8080/health/ready` to verify the API is running.
+Your API is now running at `http://localhost:8080` 🚀
+
+**Quick health check:**
+```bash
+curl http://localhost:8080/health/ready
+```
 
 ## ✨ What You Get
 
@@ -214,56 +231,126 @@ Add your tests in:
 
 ## 📖 Examples
 
-### Create a Fiber-based API (default)
+### Simple Project (Local Development)
+
+For quick prototyping or local projects, use the simple syntax:
 
 ```bash
-goforge create my-fiber-api
-# or explicitly: goforge create my-fiber-api --server fiber
+goforge create my-api -s fiber
+# Result: go.mod → module my-api
 ```
 
-### Create a Gin-based API
+### GitHub/GitLab Project
+
+For projects you'll push to GitHub or GitLab, specify the full module path:
 
 ```bash
-goforge create my-gin-api --server gin
+goforge create my-api -s fiber -m github.com/yourusername/my-api
+# Result: go.mod → module github.com/yourusername/my-api
 ```
 
-### What happens:
+### Organization/Company Project
+
+For company or organization projects:
+
+```bash
+goforge create payment-service -s gin -m gitlab.company.com/backend/payment-service
+# Result: go.mod → module gitlab.company.com/backend/payment-service
+```
+
+### What Happens When You Create a Project
 
 1. ✅ Creates project directory
-2. ✅ Generates all project files
-3. ✅ Sets up your chosen web framework (Fiber or Gin)
-4. ✅ Configures PostgreSQL and Redis
-5. ✅ Adds health check endpoints
-6. ✅ Sets up database migrations
-7. ✅ Generates Swagger/OpenAPI docs
-8. ✅ Adds Prometheus metrics endpoint
-9. ✅ Includes Docker Compose
-10. ✅ Creates comprehensive README
-11. ✅ Runs `go mod tidy` automatically
+2. ✅ Generates all project files with your chosen framework
+3. ✅ Sets up PostgreSQL database with connection pooling
+4. ✅ Configures Redis for caching
+5. ✅ Adds health check endpoints (`/health/live`, `/health/ready`)
+6. ✅ Sets up database migrations system
+7. ✅ Generates Swagger/OpenAPI docs at `/swagger/index.html`
+8. ✅ Adds Prometheus metrics at `/metrics`
+9. ✅ Includes Docker Compose for one-command startup
+10. ✅ Creates comprehensive README with all commands
+11. ✅ Downloads dependencies automatically
 
-### Start developing immediately
+### Start Coding Immediately
 
 ```bash
-cd my-fiber-api  # or my-gin-api
-make up
+cd my-api
+make up        # Starts PostgreSQL, Redis, and your API
+make logs      # Watch the logs
+
+# Test your API
 curl http://localhost:8080/health/ready
+curl http://localhost:8080/metrics
+
+# View API docs
+open http://localhost:8080/swagger/index.html
 ```
 
 ## 🔀 Choosing a Framework
 
 ### Use Fiber when:
-- You need maximum performance and minimal memory footprint
-- You prefer Express.js-like syntax and patterns
-- Your application handles high concurrent loads
-- You want the fastest request/response times
+- 🚀 You need **maximum performance** and minimal memory footprint
+- 💚 You prefer **Express.js-like** syntax and patterns
+- ⚡ Your application handles **high concurrent loads**
+- 🏎️ You want the **fastest** request/response times
 
 ### Use Gin when:
-- You prefer a mature, battle-tested framework
-- You need extensive middleware ecosystem
-- You want built-in validation and binding
-- Your team is already familiar with Gin
+- 🛡️ You prefer a **mature, battle-tested** framework
+- 🔧 You need **extensive middleware** ecosystem
+- ✅ You want **built-in validation** and binding
+- 👥 Your team is **already familiar** with Gin
 
 **Both frameworks generate identical project structure and features** - the only difference is the web framework implementation.
+
+## 🎯 Module Path Guide
+
+### When to Use Default (No `--module` flag)
+
+```bash
+goforge create my-project -s fiber
+```
+
+✅ **Perfect for:**
+- Quick prototypes and experiments
+- Learning projects
+- Local-only development
+- Tools and scripts that won't be shared
+
+**Result:** `module my-project` (simple and clean)
+
+### When to Use Custom Module Path
+
+```bash
+goforge create my-project -s fiber -m github.com/username/my-project
+```
+
+✅ **Perfect for:**
+- Projects you'll push to GitHub/GitLab
+- Open source projects
+- Company/organization codebases
+- Projects with internal imports
+
+**Result:** `module github.com/username/my-project`
+
+### Module Path Examples
+
+```bash
+# GitHub
+goforge create api -s fiber -m github.com/viveksharma/api
+
+# GitLab
+goforge create service -s gin -m gitlab.com/myorg/service
+
+# Self-hosted GitLab
+goforge create payment -s fiber -m git.company.com/backend/payment
+
+# Bitbucket
+goforge create auth -s gin -m bitbucket.org/team/auth
+
+# Company domain
+goforge create users -s fiber -m go.company.com/services/users
+```
 
 ## 🤝 Contributing
 
