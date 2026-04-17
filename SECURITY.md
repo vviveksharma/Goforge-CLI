@@ -229,7 +229,7 @@ Subscribe to security advisories:
 
 ## 📞 Contact
 
-Security concerns: security@yourproject.com
+Security concerns: sharmavivek1709@gmail.com
 General issues: GitHub Issues
 Documentation: GitHub Wiki
 
